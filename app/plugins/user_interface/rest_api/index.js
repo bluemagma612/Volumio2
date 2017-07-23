@@ -316,6 +316,24 @@ function interfaceApi(context) {
 
         });
 
+    api.route('/getalbumpath')
+        .get(function (req, res) {
+
+            if (req.query.album != undefined && req.query.artist != undefined) {
+                var query = {album: req.query.album , artist : req.query.artist}
+                var response = self.commandRouter.executeOnPlugin('music_service', 'mpd', 'getAlbumPath', query);
+
+                    response.then(function (data) {
+                        if (data != undefined) {
+                            res.json(data);
+                        } else {
+                            res.json('');
+                        }
+                    });
+            }
+
+        });
+
 }
 
 // Receive console messages from commandRouter and broadcast to all connected clients

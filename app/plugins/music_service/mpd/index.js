@@ -3540,3 +3540,45 @@ ControllerMpd.prototype.dsdVolume=function(){
         self.commandRouter.volumiosetvolume(100);
 	}
 }
+
+ControllerMpd.prototype.getAlbumPath=function(data){
+    var self = this;
+    var defer = libQ.defer();
+
+    var cmd = libMpd.cmd;
+	var albumName = data.album;
+	var artistName = data.artist;
+    if (compilation.indexOf(artistName)>-1) {  //artist is in Various Artists array
+        var GetAlbum = "find album \""+albumName+"\"" + " albumartist \"" +artistName+"\"";
+    }
+    else {
+        var GetAlbum = "find album \""+albumName+"\"" + " artist \"" +artistName+"\"";
+    }
+
+    self.clientMpd.sendCommand(cmd(GetAlbum, []), function (err, msg) {
+
+        if (msg) {
+
+            var path;
+            var name;
+            var lines = msg.split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (line.indexOf('file:') === 0) {
+                    var path = line.slice(6);
+                    var name = path.split('/').pop();
+                    var artist = self.searchFor(lines, i + 1, 'Artist:');
+                    var album = self.searchFor(lines, i + 1, 'Album:');
+                    if ( artist === artistName && album === albumName ) {
+                        var albumpath = self.getParentFolder('/mnt/' + path);
+                        defer.resolve(albumpath);
+                        i = lines.length
+					}
+
+                }
+
+            }
+        }
+        });
+    return defer.promise;
+}

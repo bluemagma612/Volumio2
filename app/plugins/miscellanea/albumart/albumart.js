@@ -8,6 +8,7 @@ var fs = require('fs-extra');
 var uuid = require('node-uuid');
 var nodetools = require('nodetools');
 var mm = require('musicmetadata');
+var http = require('http');
 
 var winston = require('winston');
 var logger = new (winston.Logger)({
@@ -226,6 +227,7 @@ var searchInFolder = function (defer, path, web) {
  **/
 var processRequest = function (web, path) {
 	var defer = Q.defer();
+	var aapath;
 
 	if (web == undefined && path == undefined) {
 	    logger.info('No input data');
@@ -233,7 +235,49 @@ var processRequest = function (web, path) {
 		return defer.promise;
 	}
 
-	if (path != undefined) {
+    if (web != undefined && path === undefined) {
+        var splitted = web.split('/');
+        var webalbum = '';
+        var webartist = '';
+
+        if (splitted.length == 3) {
+            webartist = splitted[0];
+            webalbum = splitted[1];
+        } else if (splitted.length == 4) {
+            webartist = splitted[1];
+            webalbum = splitted[2];
+        }
+
+        if (webalbum != undefined && webartist != undefined) {
+
+            var options = {
+                host: '127.0.0.1',
+                port: 3000,
+                path: '/api/v1/getalbumpath/?album='+webalbum+'&artist='+webartist
+            };
+
+            http.get(options, function(resp){
+                var string = '';
+            	resp.on('data', function(chunk){
+                    string += chunk;
+                });
+
+            resp.on("end", function(){
+                console.log(string);
+                aapath = string.replace(/"/g, '');;
+            })
+            resp.on("error", function(e){
+                console.log("Got error: " + e.message);
+            });
+		});
+    }
+	}
+
+	if (path != undefined || aapath != undefined) {
+		if (path === undefined && aapath != undefined) {
+			path = aapath;
+			console.log(path)
+		}
         path=nodetools.urlDecode(path);
 
         path=sanitizeUri(path);
@@ -272,6 +316,7 @@ var processRequest = function (web, path) {
             }
 
             fs.ensureDirSync(coverFolder);
+            console.log(coverFolder)
             var cacheFilePath=mountAlbumartFolder+coverFolder+'/'+imageSize+'.jpeg';
             //logger.info(cacheFilePath);
 
@@ -344,6 +389,8 @@ var processExpressRequest = function (req, res) {
 	var path = req.query.path;
     var icon = req.query.icon;
     var sourceicon = req.query.sourceicon;
+
+
 
     if(rawQuery !== undefined && rawQuery !== null)
     {
